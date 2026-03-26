@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Movie Player</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        body { font-family: sans-serif; background: #111; color: white; padding: 20px; max-width: 900px; margin: auto; }
+        
+        /* สไตล์สำหรับส่วนค้นหา */
+        .search-container {
+            background: #222; padding: 20px; border-radius: 8px; margin-bottom: 20px;
+            display: flex; gap: 10px;
+        }
+        #movie-url {
+            flex: 1; padding: 10px; border-radius: 4px; border: 1px solid #444; background: #333; color: white;
+            font-size: 16px;
+        }
+        #search-btn {
+            padding: 10px 20px; background: #e50914; color: white; border: none; border-radius: 4px;
+            cursor: pointer; font-size: 16px; font-weight: bold;
+        }
+        #search-btn:hover { background: #f40612; }
+
+        .episode-btn {
+            background: #333; color: white; border: 1px solid #555;
+            padding: 10px 15px; margin: 5px; cursor: pointer; border-radius: 5px;
+        }
+        .episode-btn:hover { background: #555; }
+        .episode-btn.active { background: #e50914; border-color: #e50914; }
+        
+        #status-message { color: #aaa; margin-bottom: 10px; }
+    </style>
+</head>
+
+<body>
+
+    <h2>🍿 วางลิงก์หนังเพื่อรับชม</h2>
+
+    <div class="search-container">
+        <input type="text" id="movie-url" placeholder="วางลิงก์จาก 7-hd.com ที่นี่...">
+        <button id="search-btn">ดึงข้อมูลตอน</button>
+    </div>
+
+    <div id="status-message"></div>
+
+    <div id="player-container">
+        <video id="video-player" controls style="width: 100%; height: 429px; background: black; display: none;"></video>
+    </div>
+
+    <div id="episode-container" style="display: none; margin-top: 20px;">
+        <h3>เลือกตอน:</h3>
+        <div id="episode-list"></div>
+    </div>
+
+    <script>
+        // ตัวแปรสำหรับเก็บ instance ของ hls 
+        let hlsPlayer = null;
+
+        // ฟังก์ชันสำหรับเล่นวิดีโอ
+        function playVideo(m3u8Url, btnElement) {
+            const video = document.getElementById('video-player');
+            video.style.display = 'block'; // แสดงวิดีโอเมื่อเริ่มเล่น
+
+            // จัดการสีปุ่มที่ถูกคลิก
+            document.querySelectorAll('.episode-btn').forEach(btn => btn.classList.remove('active'));
+            if(btnElement) btnElement.classList.add('active');
+
+            // ถ้ามี HLS ตัวเก่ากำลังเล่นอยู่ ให้ลบทิ้งก่อน
+            if (hlsPlayer) {
+                hlsPlayer.destroy();
+            }
+
+            if (Hls.isSupported()) {
+                hlsPlayer = new Hls();
+                hlsPlayer.loadSource(m3u8Url);
+                hlsPlayer.attachMedia(video);
+                hlsPlayer.on(Hls.Events.MANIFEST_PARSED, function() {
+                    video.play();
+                });
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = m3u8Url;
+                video.addEventListener('loadedmetadata', function() {
+                    video.play();
+                });
+            }
+        }
+
+        // ฟังก์ชันหลักดึงข้อมูล
+        async function fetchAndExtractEpisodes(targetUrl) {
+            const statusMsg = document.getElementById('status-message');
+            const episodeList = document.getElementById('episode-list');
+            const episodeContainer = document.getElementById('episode-container');
+            const video = document.getElementById('video-player');
+
+            // เคลียร์ข้อมูลเก่าก่อนค้นหาใหม่
+            episodeList.innerHTML = '';
+            episodeContainer.style.display = 'none';
+            video.style.display = 'none';
+            if (hlsPlayer) hlsPlayer.destroy();
+            video.pause();
+            video.removeAttribute('src');
+
+            statusMsg.innerText = '⏳ กำลังค้นหาข้อมูล กรุณารอสักครู่...';
+
+            try {
+                // เอา URL ที่กรอก มาต่อท้าย Proxy ของเรา
+                const proxyUrl = `http://localhost:1234/api/proxy?url=${encodeURIComponent(targetUrl)}`;
+                
+                const res = await fetch(proxyUrl);
+                if (!res.ok) throw new Error('ไม่สามารถดึงข้อมูลจากเว็บต้นทางได้');
+                const html = await res.text();
+
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+
+                const episodeLinks = doc.querySelectorAll('a.player-1-btn-link');
+
+                if (episodeLinks.length === 0) {
+                    statusMsg.innerText = '❌ ไม่พบตอนของหนังในลิงก์นี้ (อาจจะเป็นลิงก์ผิด หรือเว็บเปลี่ยนโครงสร้าง)';
+                    return;
+                }
+
+                statusMsg.innerText = `✅ ดึงข้อมูลสำเร็จ! พบทั้งหมด ${episodeLinks.length} ตอน`;
+                episodeContainer.style.display = 'block';
+
+                episodeLinks.forEach((link, index) => {
+                    const href = link.getAttribute('href');
+                    const epName = `ตอนที่ ${index + 1}`;
+
+                    if (href) {
+                        const parts = href.split('/');
+                        const videoId = parts[parts.length - 1];
+                        const m3u8Url = `https://media.vdohls.com/${videoId}/playlist.m3u8`;
+
+                        const btn = document.createElement('button');
+                        btn.className = 'episode-btn';
+                        btn.innerText = epName;
+
+                        btn.onclick = () => {
+                            statusMsg.innerText = `▶️ กำลังเล่น: ${epName}`;
+                            playVideo(m3u8Url, btn);
+                        };
+
+                        episodeList.appendChild(btn);
+
+                        // เล่นตอนแรกอัตโนมัติ
+                        if (index === 0) {
+                            statusMsg.innerText = `▶️ กำลังเล่น: ${epName}`;
+                            playVideo(m3u8Url, btn);
+                        }
+                    }
+                });
+
+            } catch (err) {
+                console.error(err);
+                statusMsg.innerText = '❌ เกิดข้อผิดพลาด: ' + err.message;
+            }
+        }
+
+        // 🔥 2. ดักจับการคลิกปุ่มค้นหา
+        document.getElementById('search-btn').addEventListener('click', () => {
+            const urlInput = document.getElementById('movie-url').value.trim();
+            if (!urlInput) {
+                alert('กรุณาวางลิงก์ก่อนครับ!');
+                return;
+            }
+            fetchAndExtractEpisodes(urlInput);
+        });
+
+        // 🔥 3. แถม: ดักจับการกดปุ่ม Enter ในช่องกรอก
+        document.getElementById('movie-url').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('search-btn').click();
+            }
+        });
+    </script>
+
+</body>
+
+</html>
