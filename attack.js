@@ -24,6 +24,6 @@ app.get('/api/proxy', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+app.listen(PORT,   '0.0.0.0',() => {
   console.log(`Proxy server listening on http://localhost:${PORT}`);
 });
