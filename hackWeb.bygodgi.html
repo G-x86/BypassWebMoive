@@ -1,186 +1,464 @@
-<!DOCTYPE html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🎬 GodGi Movie Player</title>
 
-<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎬 GodGi Movie Player</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="favicon.png">
+    <meta name="theme-color" content="#0d0d14">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        /* ===== MOVIE GRID ===== */
+        #grid-movie {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 18px;
+            padding: 20px 0;
+        }
+
+        /* ===== MOVIE CARD ===== */
+        .grid-movie .box {
+            background: linear-gradient(145deg, #1e1e2e, #16161f);
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+                box-shadow 0.35s ease,
+                border-color 0.35s ease;
+            cursor: pointer;
+        }
+
+        /* Hover glow lift */
+        .grid-movie .box:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6),
+                0 0 0 1px rgba(220, 38, 38, 0.5),
+                0 0 20px rgba(220, 38, 38, 0.15);
+            border-color: rgba(220, 38, 38, 0.6);
+        }
+
+        /* Image wrapper */
+        .box-img {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .box-img img {
+            width: 100%;
+            height: 230px;
+            display: block;
+            object-fit: cover;
+            transition: transform 0.5s ease;
+        }
+
+        .grid-movie .box:hover .box-img img {
+            transform: scale(1.07);
+        }
+
+        /* Gradient overlay on image bottom */
+        .box-img::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to top,
+                    rgba(16, 16, 24, 0.85) 0%,
+                    transparent 55%);
+            pointer-events: none;
+        }
+
+        /* ===== INFO BOX ===== */
+        .p-box {
+            padding: 10px 12px 12px;
+            color: #fff;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .p1 {
+            font-size: 11px;
+            font-weight: 600;
+            color: #a78bfa;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 4px;
+        }
+
+        .p2 {
+            font-size: 13px;
+            font-weight: 600;
+            line-height: 1.45;
+            color: #f0f0f0;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        /* ===== BADGES ===== */
+        .figure-box {
+            pointer-events: none;
+        }
+
+        /* IMDB score badge */
+        .info1 {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: rgba(0, 0, 0, 0.65);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            padding: 3px 8px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #fbbf24;
+            font-family: 'Inter', sans-serif;
+            border: 1px solid rgba(251, 191, 36, 0.3);
+        }
+
+        .info1 .star {
+            width: 28px;
+            height: auto;
+            filter: drop-shadow(0 0 3px rgba(251, 191, 36, 0.4));
+        }
+
+        /* HD / Quality ribbon */
+        .movie-corner {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            padding: 3px 9px;
+            font-weight: 800;
+            font-size: 10px;
+            font-family: 'Inter', sans-serif;
+            letter-spacing: 0.08em;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+        }
+
+        .movie-HD {
+            background: linear-gradient(135deg, #dc2626, #991b1b) !important;
+            color: #fff;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0d0d14;
+            color: white;
+            padding: 20px;
+            max-width: 1100px;
+            margin: auto;
+        }
+
+        /* ===== SEARCH BAR ===== */
+        .search-container {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            padding: 18px 20px;
+            border-radius: 14px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        #movie-url {
+            flex: 1;
+            padding: 11px 16px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            font-size: 15px;
+            font-family: 'Inter', sans-serif;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        #movie-url:focus {
+            border-color: rgba(220, 38, 38, 0.6);
+            box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+        }
+
+        #search-btn {
+            padding: 11px 22px;
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 700;
+            font-family: 'Inter', sans-serif;
+            letter-spacing: 0.02em;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+            box-shadow: 0 4px 14px rgba(220, 38, 38, 0.4);
+        }
+
+        #search-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(220, 38, 38, 0.55);
+        }
+
+        #search-btn:active {
+            transform: translateY(0);
+        }
+
+        .episode-btn {
+            background: rgba(255, 255, 255, 0.06);
+            color: #d1d5db;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 16px;
+            margin: 4px;
+            cursor: pointer;
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            transition: background 0.2s, border-color 0.2s, color 0.2s;
+        }
+
+        .episode-btn:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.2);
+            color: #fff;
+        }
+
+        .episode-btn.active {
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+            border-color: transparent;
+            color: #fff;
+            box-shadow: 0 3px 10px rgba(220, 38, 38, 0.4);
+        }
+
+        #status-message {
+            color: #9ca3af;
+            margin-bottom: 12px;
+            font-size: 14px;
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
 </head>
 
 <body>
 
-<h2>🍿 วางลิงก์หนังเพื่อรับชม</h2>
+    <h2>🍿 วางลิงก์หนังเพื่อรับชม</h2>
 
-<input type="text" id="movie-url" placeholder="วางลิงก์...">
-<button id="search-btn">ดึงข้อมูลตอน</button>
+    <div class="search-container">
+        <input type="text" id="movie-url" placeholder="วางลิงก์จาก 7-hd.com ที่นี่...">
+        <button id="search-btn">ดึงข้อมูลตอน</button>
+    </div>
 
-<div id="status-message"></div>
+    <div id="status-message"></div>
 
-<video id="video-player" controls style="width:100%; display:none;"></video>
+    <div id="player-container">
+        <video id="video-player" controls=""
+            style="width: 100%; height: 429px; background: black; display: none;"></video>
+    </div>
 
-<div id="episode-container" style="display:none;">
-    <h3>เลือกตอน:</h3>
-    <div id="episode-list"></div>
-</div>
+    <div id="episode-container" style="display: none; margin-top: 20px;">
+        <h3>เลือกตอน:</h3>
+        <div id="episode-list"></div>
+    </div>
+    <div id="grid-movie">
 
-<div id="grid-movie"></div>
+    </div>
+    <script>
+        // กำหนดตั้งค่า IP สำหรับ Proxy
+        const PROXY_IP = "192.168.100.176";
+        const PROXY_PORT = "1234";
+        const PROXY_BASE_URL = `http://${PROXY_IP}:${PROXY_PORT}/api/proxy?url=`;
 
-<script>
-/* =========================
-   🔥 CONFIG
-========================= */
-const PROXY_BASE = "http://192.168.100.176:1234";
-// const PROXY_BASE = window.location.origin;
+        // ตัวแปรสำหรับเก็บ instance ของ hls 
+        let hlsPlayer = null;
 
-/* =========================
-   PLAYER
-========================= */
-let hlsPlayer = null;
+        // ฟังก์ชันสำหรับเล่นวิดีโอ
+        function playVideo(m3u8Url, btnElement) {
+            const video = document.getElementById('video-player');
+            video.style.display = 'block'; // แสดงวิดีโอเมื่อเริ่มเล่น
 
-function playVideo(m3u8Url, btnElement) {
-    const video = document.getElementById('video-player');
-    video.style.display = 'block';
+            // จัดการสีปุ่มที่ถูกคลิก
+            document.querySelectorAll('.episode-btn').forEach(btn => btn.classList.remove('active'));
+            if (btnElement) btnElement.classList.add('active');
 
-    document.querySelectorAll('.episode-btn').forEach(btn => btn.classList.remove('active'));
-    if (btnElement) btnElement.classList.add('active');
+            // ถ้ามี HLS ตัวเก่ากำลังเล่นอยู่ ให้ลบทิ้งก่อน
+            if (hlsPlayer) {
+                hlsPlayer.destroy();
+            }
 
-    if (hlsPlayer) hlsPlayer.destroy();
-
-    if (Hls.isSupported()) {
-        hlsPlayer = new Hls();
-        hlsPlayer.loadSource(m3u8Url);
-        hlsPlayer.attachMedia(video);
-        hlsPlayer.on(Hls.Events.MANIFEST_PARSED, () => video.play());
-    } else {
-        video.src = m3u8Url;
-        video.play();
-    }
-}
-
-/* =========================
-   FETCH EPISODES
-========================= */
-async function fetchAndExtractEpisodes(targetUrl) {
-    const statusMsg = document.getElementById('status-message');
-    const episodeList = document.getElementById('episode-list');
-    const episodeContainer = document.getElementById('episode-container');
-    const video = document.getElementById('video-player');
-
-    episodeList.innerHTML = '';
-    episodeContainer.style.display = 'none';
-    video.style.display = 'none';
-
-    if (hlsPlayer) hlsPlayer.destroy();
-    video.pause();
-    video.removeAttribute('src');
-
-    statusMsg.innerText = '⏳ กำลังโหลด...';
-
-    try {
-        const proxyUrl = `${PROXY_BASE}/api/proxy?url=${encodeURIComponent(targetUrl)}`;
-
-        const res = await fetch(proxyUrl);
-        if (!res.ok) throw new Error('โหลดไม่ได้');
-
-        const html = await res.text();
-        const doc = new DOMParser().parseFromString(html, 'text/html');
-
-        const episodeLinks = doc.querySelectorAll('a.player-1-btn-link');
-
-        if (episodeLinks.length === 0) {
-            statusMsg.innerText = '❌ ไม่พบตอน';
-            return;
+            if (Hls.isSupported()) {
+                hlsPlayer = new Hls();
+                hlsPlayer.loadSource(m3u8Url);
+                hlsPlayer.attachMedia(video);
+                hlsPlayer.on(Hls.Events.MANIFEST_PARSED, function () {
+                    video.play();
+                });
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = m3u8Url;
+                video.addEventListener('loadedmetadata', function () {
+                    video.play();
+                });
+            }
         }
 
-        statusMsg.innerText = `✅ พบ ${episodeLinks.length} ตอน`;
-        episodeContainer.style.display = 'block';
+        // ฟังก์ชันหลักดึงข้อมูล
+        async function fetchAndExtractEpisodes(targetUrl) {
+            const statusMsg = document.getElementById('status-message');
+            const episodeList = document.getElementById('episode-list');
+            const episodeContainer = document.getElementById('episode-container');
+            const video = document.getElementById('video-player');
 
-        episodeLinks.forEach((link, index) => {
-            const href = link.getAttribute('href');
-            if (!href) return;
+            // เคลียร์ข้อมูลเก่าก่อนค้นหาใหม่
+            episodeList.innerHTML = '';
+            episodeContainer.style.display = 'none';
+            video.style.display = 'none';
+            if (hlsPlayer) hlsPlayer.destroy();
+            video.pause();
+            video.removeAttribute('src');
 
-            const parts = href.split('/');
-            const videoId = parts[parts.length - 1] || parts[parts.length - 2];
+            statusMsg.innerText = '⏳ กำลังค้นหาข้อมูล กรุณารอสักครู่...';
 
-            const m3u8Url = `https://media.vdohls.com/${videoId}/playlist.m3u8`;
+            try {
+                // เอา URL ที่กรอก มาต่อท้าย Proxy ของเรา
+                const proxyUrl = `${PROXY_BASE_URL}${encodeURIComponent(targetUrl)}`;
 
-            const btn = document.createElement('button');
-            btn.className = 'episode-btn';
-            btn.innerText = `ตอนที่ ${index + 1}`;
+                const res = await fetch(proxyUrl);
+                if (!res.ok) throw new Error('ไม่สามารถดึงข้อมูลจากเว็บต้นทางได้');
+                const html = await res.text();
 
-            btn.onclick = () => {
-                statusMsg.innerText = `▶️ ตอนที่ ${index + 1}`;
-                playVideo(m3u8Url, btn);
-            };
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
 
-            episodeList.appendChild(btn);
+                const episodeLinks = doc.querySelectorAll('a.player-1-btn-link');
 
-            if (index === 0) playVideo(m3u8Url, btn);
+                if (episodeLinks.length === 0) {
+                    statusMsg.innerText = '❌ ไม่พบตอนของหนังในลิงก์นี้ (อาจจะเป็นลิงก์ผิด หรือเว็บเปลี่ยนโครงสร้าง)';
+                    return;
+                }
+
+                statusMsg.innerText = `✅ ดึงข้อมูลสำเร็จ! พบทั้งหมด ${episodeLinks.length} ตอน`;
+                episodeContainer.style.display = 'block';
+
+                episodeLinks.forEach((link, index) => {
+                    const href = link.getAttribute('href');
+                    const epName = `ตอนที่ ${index + 1}`;
+
+                    if (href) {
+                        const parts = href.split('/');
+                        const videoId = parts[parts.length - 1] ? parts[parts.length - 1] : parts[parts.length - 2];
+                        const m3u8Url = `https://media.vdohls.com/${videoId}/playlist.m3u8`;
+
+                        const btn = document.createElement('button');
+                        btn.className = 'episode-btn';
+                        btn.innerText = epName;
+
+                        btn.onclick = () => {
+                            statusMsg.innerText = `▶️ กำลังเล่น: ${epName}`;
+                            playVideo(m3u8Url, btn);
+                        };
+
+                        episodeList.appendChild(btn);
+
+                        // เล่นตอนแรกอัตโนมัติ
+                        if (index === 0) {
+                            statusMsg.innerText = `▶️ กำลังเล่น: ${epName}`;
+                            playVideo(m3u8Url, btn);
+                        }
+                    }
+                });
+
+            } catch (err) {
+                console.error(err);
+                statusMsg.innerText = '❌ เกิดข้อผิดพลาด: ' + err.message;
+            }
+        }
+        const f = async (url) => {
+            const res = await fetch(`${PROXY_BASE_URL}${encodeURIComponent(url)}`);
+            if (!res.ok) throw new Error('ไม่สามารถดึงข้อมูลจากเว็บต้นทางได้');
+            const html = await res.text();
+
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+
+            // 1. ดึง Elements ทั้งหมดออกมา (เลือก div.box หรือ a ก็ได้)
+            const boxes = doc.querySelectorAll('.grid-movie .box');
+            const targetContainer = document.getElementById("grid-movie");
+
+            boxes.forEach(box => {
+                // 2. ค้นหาแท็ก <a> ภายใน box นั้นๆ
+                const link = box.querySelector('a');
+
+                if (link) {
+                    const originalUrl = link.getAttribute('href'); // ดึง URL เดิม
+
+                    // 3. ครอบด้วย URL Proxy ตามที่คุณต้องการ
+                    const proxyUrl = `${PROXY_BASE_URL}${encodeURIComponent(originalUrl)}`;
+
+                    // เปลี่ยนค่า href ในแท็ก <a>
+                    link.setAttribute('href', "");
+                    link.onclick = (event) => {
+                        // หยุดการทำงานปกติของ Browser (ไม่ให้มันเปลี่ยนหน้า)
+                        event.preventDefault();
+
+                        console.log("กำลังดึงข้อมูลจาก:", proxyUrl);
+
+                        // เรียกฟังก์ชันที่คุณต้องการทำงาน
+                        fetchAndExtractEpisodes(proxyUrl);
+                    };
+
+                }
+
+                // 4. นำ box ที่แก้ไข URL แล้ว ไปแปะในหน้าเว็บปัจจุบัน
+                targetContainer.appendChild(box);
+            });
+
+
+
+        }
+        fetch('header.html')
+            .then(response => response.text())
+            .then(data => {
+                document.getElementById('header-placeholder').innerHTML = data;
+            });
+        for (let index = 1; index < 5; index++) {
+            if (index > 1) {
+                f('https://7-hd.com/page/' + index);
+            } else {
+                f('https://7-hd.com/');
+            }
+
+
+        }
+
+        // 🔥 2. ดักจับการคลิกปุ่มค้นหา
+        document.getElementById('search-btn').addEventListener('click', () => {
+            const urlInput = document.getElementById('movie-url').value.trim();
+            if (!urlInput) {
+                alert('กรุณาวางลิงก์ก่อนครับ!');
+                return;
+            }
+            fetchAndExtractEpisodes(urlInput);
+
         });
 
-    } catch (err) {
-        statusMsg.innerText = '❌ ' + err.message;
-    }
-}
+        // 🔥 3. แถม: ดักจับการกดปุ่ม Enter ในช่องกรอก
+        document.getElementById('movie-url').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('search-btn').click();
+            }
+        });
 
-/* =========================
-   FETCH GRID MOVIE
-========================= */
-const f = async (url) => {
-    const res = await fetch(`${PROXY_BASE}/api/proxy?url=${encodeURIComponent(url)}`);
-    if (!res.ok) throw new Error('โหลดไม่ได้');
 
-    const html = await res.text();
-    const doc = new DOMParser().parseFromString(html, 'text/html');
 
-    const boxes = doc.querySelectorAll('.grid-movie .box');
-    const target = document.getElementById("grid-movie");
 
-    boxes.forEach(box => {
-        const link = box.querySelector('a');
+    </script>
 
-        if (link) {
-            const originalUrl = link.getAttribute('href');
-
-            link.href = "#";
-            link.onclick = (e) => {
-                e.preventDefault();
-                fetchAndExtractEpisodes(originalUrl);
-            };
-        }
-
-        target.appendChild(box);
-    });
-};
-
-/* =========================
-   LOAD MOVIE LIST
-========================= */
-for (let i = 1; i <= 4; i++) {
-    if (i === 1) {
-        f('https://7-hd.com/');
-    } else {
-        f(`https://7-hd.com/page/${i}`);
-    }
-}
-
-/* =========================
-   EVENTS
-========================= */
-document.getElementById('search-btn').addEventListener('click', () => {
-    const url = document.getElementById('movie-url').value.trim();
-    if (!url) return alert('ใส่ลิงก์ก่อน');
-
-    fetchAndExtractEpisodes(url);
-});
-
-document.getElementById('movie-url').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        document.getElementById('search-btn').click();
-    }
-});
-</script>
 
 </body>
+
 </html>
