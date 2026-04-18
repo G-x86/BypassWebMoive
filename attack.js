@@ -3,11 +3,11 @@ const fetch = require('node-fetch');
 const cors = require('cors');
 
 const app = express();
-const PORT = process.env.PORT || 1234;
+const PORT = process.env.PORT || 1235;
 
 // ✅ เปิด CORS ให้ทุก origin
 app.use(cors());
-
+app.use('/public', express.static('public'));
 app.get('/api/proxy', async (req, res) => {
   try {
     const targetUrl = req.query.url;
